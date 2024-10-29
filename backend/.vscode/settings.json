@@ -1,0 +1,17 @@
+{
+    "pylint.args": [
+        "--load-plugins=pylint_django",
+        "--django-settings-module=project.conf.settings"
+    ],
+    "[python]": {
+        "editor.defaultFormatter": "ms-python.black-formatter",
+        "editor.formatOnSave": true,
+        "editor.codeActionsOnSave": {
+            "source.organizeImports": "explicit"
+        }
+    },
+    "isort.args": [
+        "--profile",
+        "black"
+    ]
+}
