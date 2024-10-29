@@ -4,7 +4,7 @@ from jsonschema import ValidationError as JsonSchemaValidationError
 from jsonschema import validate
 from rest_framework import serializers
 
-from .models import MetadataSchema, Sample
+from .models import MetadataSchema, Result, ResultSchema, Sample
 
 
 class MetadataSchemaSerializer(serializers.ModelSerializer):
@@ -25,12 +25,37 @@ class SampleSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         attrs = super().validate(attrs)
 
-        schema = attrs.get("schema")
-        metadata = attrs.get("metadata")
-
         try:
-            validate(instance=metadata, schema=schema.definition)
+            validate(instance=attrs["metadata"], schema=attrs["schema"].definition)
         except JsonSchemaValidationError as e:
             raise serializers.ValidationError(f"Metadata validation error: {e.message}")
+
+        return attrs
+
+
+class ResultSchemaSerializer(serializers.ModelSerializer):
+    """Serializer for the ResultSchema model."""
+
+    class Meta:
+        model = ResultSchema
+        fields = "__all__"
+
+
+class ResultSerializer(serializers.ModelSerializer):
+    """Serializer for the Result model."""
+
+    class Meta:
+        model = Result
+        fields = "__all__"
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+
+        try:
+            validate(instance=attrs["data"], schema=attrs["schema"].definition)
+        except JsonSchemaValidationError as e:
+            raise serializers.ValidationError(
+                f"Result data validation error: {e.message}"
+            )
 
         return attrs
