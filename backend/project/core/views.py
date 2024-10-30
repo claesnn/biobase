@@ -4,8 +4,9 @@ from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from .models import MetadataSchema, Result, ResultSchema, Sample
+from .models import Entity, MetadataSchema, Result, ResultSchema, Sample
 from .serializers import (
+    EntitySerializer,
     MetadataSchemaSerializer,
     ResultSchemaSerializer,
     ResultSerializer,
@@ -80,6 +81,31 @@ class ResultViewSet(viewsets.ModelViewSet):
         by filtering against `schema__type` and `schema__version` query parameters in the URL.
         """
         queryset = self.queryset
+        schema_type = self.request.query_params.get("schema__type")
+        schema_version = self.request.query_params.get("schema__version")
+
+        if schema_type:
+            queryset = queryset.filter(schema__type=schema_type)
+        if schema_version:
+            queryset = queryset.filter(schema__version=schema_version)
+
+        return queryset
+
+
+class EntityViewSet(viewsets.ModelViewSet):
+    """
+    A viewset for viewing and editing entities.
+    """
+
+    queryset = Entity.objects.select_related("schema")
+    serializer_class = EntitySerializer
+
+    def get_queryset(self):
+        """
+        Optionally restricts the returned entities to a given schema type or version,
+        by filtering against `schema__type` and `schema__version` query parameters in the URL.
+        """
+        queryset = super().get_queryset()
         schema_type = self.request.query_params.get("schema__type")
         schema_version = self.request.query_params.get("schema__version")
 

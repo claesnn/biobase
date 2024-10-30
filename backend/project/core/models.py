@@ -5,7 +5,7 @@ from django.db.models import JSONField
 
 
 class MetadataSchema(models.Model):
-    """Metadata schema for samples"""
+    """Metadata schemas for samples and entities"""
 
     type = models.CharField(max_length=100)
     version = models.PositiveSmallIntegerField()
@@ -20,10 +20,22 @@ class MetadataSchema(models.Model):
         return f"{self.type} v{self.version}"
 
 
+class Entity(models.Model):
+    """Entity with metadata"""
+
+    title = models.CharField(max_length=100, unique=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    schema = models.ForeignKey(MetadataSchema, on_delete=models.PROTECT)
+    metadata = JSONField()
+
+    def __str__(self):
+        return self.title
+
+
 class Sample(models.Model):
     """Sample with metadata"""
 
-    sample_id = models.CharField(max_length=100, unique=True)
+    entity = models.ForeignKey(Entity, on_delete=models.CASCADE, related_name="samples")
     created_at = models.DateTimeField(auto_now_add=True)
     requestor_id = models.CharField(max_length=100)
     schema = models.ForeignKey(MetadataSchema, on_delete=models.PROTECT)
