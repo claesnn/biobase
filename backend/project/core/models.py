@@ -4,16 +4,14 @@ from django.db import models
 from django.db.models import JSONField
 
 
-class MetadataSchema(models.Model):
-    """Metadata schemas for samples and entities"""
+class EntitySchema(models.Model):
+    """Schema for validating Entity metadata"""
 
     type = models.CharField(max_length=100)
     version = models.PositiveSmallIntegerField()
     definition = JSONField()
 
     class Meta:
-        """Ensure unique schema type and version"""
-
         unique_together = ("type", "version")
 
     def __str__(self):
@@ -25,11 +23,25 @@ class Entity(models.Model):
 
     title = models.CharField(max_length=100, unique=True)
     created_at = models.DateTimeField(auto_now_add=True)
-    schema = models.ForeignKey(MetadataSchema, on_delete=models.PROTECT)
+    schema = models.ForeignKey(EntitySchema, on_delete=models.PROTECT)
     metadata = JSONField()
 
     def __str__(self):
         return self.title
+
+
+class SampleSchema(models.Model):
+    """Schema for validating Sample metadata"""
+
+    type = models.CharField(max_length=100)
+    version = models.PositiveSmallIntegerField()
+    definition = JSONField()
+
+    class Meta:
+        unique_together = ("type", "version")
+
+    def __str__(self):
+        return f"{self.type} v{self.version}"
 
 
 class Sample(models.Model):
@@ -38,11 +50,11 @@ class Sample(models.Model):
     entity = models.ForeignKey(Entity, on_delete=models.CASCADE, related_name="samples")
     created_at = models.DateTimeField(auto_now_add=True)
     requestor_id = models.CharField(max_length=100)
-    schema = models.ForeignKey(MetadataSchema, on_delete=models.PROTECT)
+    schema = models.ForeignKey(SampleSchema, on_delete=models.PROTECT)
     metadata = JSONField()
 
     def __str__(self):
-        return f"{self.sample_id} ({self.schema})"
+        return f"{self.id} ({self.schema})"
 
 
 class ResultSchema(models.Model):

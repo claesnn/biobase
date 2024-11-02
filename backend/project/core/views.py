@@ -4,23 +4,58 @@ from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from .models import Entity, MetadataSchema, Result, ResultSchema, Sample
+from .models import Entity, EntitySchema, Result, ResultSchema, Sample, SampleSchema
 from .serializers import (
+    EntitySchemaSerializer,
     EntitySerializer,
-    MetadataSchemaSerializer,
     ResultSchemaSerializer,
     ResultSerializer,
+    SampleSchemaSerializer,
     SampleSerializer,
 )
 
 
-class MetadataSchemaViewSet(viewsets.ModelViewSet):
+class EntitySchemaViewset(viewsets.ModelViewSet):
     """
     A viewset for viewing and editing metadata schemas.
     """
 
-    queryset = MetadataSchema.objects.all()
-    serializer_class = MetadataSchemaSerializer
+    queryset = EntitySchema.objects.all()
+    serializer_class = EntitySchemaSerializer
+
+
+class EntityViewSet(viewsets.ModelViewSet):
+    """
+    A viewset for viewing and editing entities.
+    """
+
+    queryset = Entity.objects.select_related("schema")
+    serializer_class = EntitySerializer
+
+    def get_queryset(self):
+        """
+        Optionally restricts the returned entities to a given schema type or version,
+        by filtering against `schema__type` and `schema__version` query parameters in the URL.
+        """
+        queryset = super().get_queryset()
+        schema_type = self.request.query_params.get("schema__type")
+        schema_version = self.request.query_params.get("schema__version")
+
+        if schema_type:
+            queryset = queryset.filter(schema__type=schema_type)
+        if schema_version:
+            queryset = queryset.filter(schema__version=schema_version)
+
+        return queryset
+
+
+class SampleSchemaViewSet(viewsets.ModelViewSet):
+    """
+    A viewset for viewing and editing sample schemas.
+    """
+
+    queryset = SampleSchema.objects.all()
+    serializer_class = SampleSchemaSerializer
 
 
 class SampleViewSet(viewsets.ModelViewSet):
@@ -81,31 +116,6 @@ class ResultViewSet(viewsets.ModelViewSet):
         by filtering against `schema__type` and `schema__version` query parameters in the URL.
         """
         queryset = self.queryset
-        schema_type = self.request.query_params.get("schema__type")
-        schema_version = self.request.query_params.get("schema__version")
-
-        if schema_type:
-            queryset = queryset.filter(schema__type=schema_type)
-        if schema_version:
-            queryset = queryset.filter(schema__version=schema_version)
-
-        return queryset
-
-
-class EntityViewSet(viewsets.ModelViewSet):
-    """
-    A viewset for viewing and editing entities.
-    """
-
-    queryset = Entity.objects.select_related("schema")
-    serializer_class = EntitySerializer
-
-    def get_queryset(self):
-        """
-        Optionally restricts the returned entities to a given schema type or version,
-        by filtering against `schema__type` and `schema__version` query parameters in the URL.
-        """
-        queryset = super().get_queryset()
         schema_type = self.request.query_params.get("schema__type")
         schema_version = self.request.query_params.get("schema__version")
 
