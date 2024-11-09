@@ -4,14 +4,22 @@ from jsonschema import ValidationError as JsonSchemaValidationError
 from jsonschema import validate
 from rest_framework import serializers
 
-from .models import Entity, EntitySchema, Result, ResultSchema, Sample, SampleSchema
+from .models import Analysis, Batch, Entity, MetaSchema, Project, Result, Sample
 
 
-class EntitySchemaSerializer(serializers.ModelSerializer):
+class ProjectSerializer(serializers.ModelSerializer):
+    """Serializer for the Project model."""
+
+    class Meta:
+        model = Project
+        fields = "__all__"
+
+
+class MetaSchemaSerializer(serializers.ModelSerializer):
     """Serializer for the MetadataSchema model."""
 
     class Meta:
-        model = EntitySchema
+        model = MetaSchema
         fields = "__all__"
 
 
@@ -33,12 +41,22 @@ class EntitySerializer(serializers.ModelSerializer):
         return attrs
 
 
-class SampleSchemaSerializer(serializers.ModelSerializer):
-    """Serializer for the SampleSchema model."""
+class BatchSerializer(serializers.ModelSerializer):
+    """Serializer for the Batch model."""
 
     class Meta:
-        model = SampleSchema
+        model = Batch
         fields = "__all__"
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+
+        try:
+            validate(instance=attrs["metadata"], schema=attrs["schema"].definition)
+        except JsonSchemaValidationError as e:
+            raise serializers.ValidationError(f"Metadata validation error: {e.message}")
+
+        return attrs
 
 
 class SampleSerializer(serializers.ModelSerializer):
@@ -59,12 +77,22 @@ class SampleSerializer(serializers.ModelSerializer):
         return attrs
 
 
-class ResultSchemaSerializer(serializers.ModelSerializer):
-    """Serializer for the ResultSchema model."""
+class AnalysisSerializer(serializers.ModelSerializer):
+    """Serializer for the Analysis model."""
 
     class Meta:
-        model = ResultSchema
+        model = Analysis
         fields = "__all__"
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+
+        try:
+            validate(instance=attrs["metadata"], schema=attrs["schema"].definition)
+        except JsonSchemaValidationError as e:
+            raise serializers.ValidationError(f"Metadata validation error: {e.message}")
+
+        return attrs
 
 
 class ResultSerializer(serializers.ModelSerializer):

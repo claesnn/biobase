@@ -4,15 +4,37 @@ from django.db import models
 from django.db.models import JSONField
 
 
-class EntitySchema(models.Model):
+class Project(models.Model):
+    """Project model"""
+
+    name = models.CharField(max_length=100, unique=True)
+    description = models.TextField(blank=True)
+
+    def __str__(self):
+        return self.name
+
+
+class MetaSchema(models.Model):
     """Schema for validating Entity metadata"""
 
-    type = models.CharField(max_length=100)
+    class SchemaType(models.IntegerChoices):
+        """Schema type (Entity, Batch, Sample, Result)"""
+
+        ENTITY = 1
+        BATCH = 2
+        SAMPLE = 3
+        RESULT = 4
+        ANALYSIS = 5
+
+    title = models.CharField(
+        max_length=100
+    )  # Antibody, Cultivation, CultivationSample, Plasmid, Stem Cell, Oligo
+    type = models.IntegerField(choices=SchemaType)  # Entity, Batch, Sample, Result
     version = models.PositiveSmallIntegerField()
     definition = JSONField()
 
     class Meta:
-        unique_together = ("type", "version")
+        unique_together = ("title", "type", "version")
 
     def __str__(self):
         return f"{self.type} v{self.version}"
@@ -21,63 +43,101 @@ class EntitySchema(models.Model):
 class Entity(models.Model):
     """Entity with metadata"""
 
-    title = models.CharField(max_length=100, unique=True)
     created_at = models.DateTimeField(auto_now_add=True)
-    schema = models.ForeignKey(EntitySchema, on_delete=models.PROTECT)
+    updated_at = models.DateTimeField(auto_now=True)
+    schema = models.ForeignKey(MetaSchema, on_delete=models.PROTECT)
+    projects = models.ManyToManyField(Project, related_name="entities")
     metadata = JSONField()
 
-    def __str__(self):
-        return self.title
-
-
-class SampleSchema(models.Model):
-    """Schema for validating Sample metadata"""
-
-    type = models.CharField(max_length=100)
-    version = models.PositiveSmallIntegerField()
-    definition = JSONField()
-
-    class Meta:
-        unique_together = ("type", "version")
+    @property
+    def barcode(self):
+        """Return barcode for the entity"""
+        prefix = self.metadata.get("prefix", "XX")
+        return f"{prefix}{self.id}"
 
     def __str__(self):
-        return f"{self.type} v{self.version}"
+        prefix = self.metadata.get("prefix", "XX")
+        return f"{prefix}{self.id}"
+
+
+class Batch(models.Model):
+    """Batch of entities"""
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    metadata = JSONField()
+
+    schema = models.ForeignKey(MetaSchema, on_delete=models.PROTECT)
+    projects = models.ManyToManyField(Project, related_name="batches")
+    entities = models.ManyToManyField(Entity, related_name="batches")
+
+    @property
+    def barcode(self):
+        """Return barcode for the batch"""
+        prefix = "B"
+        return f"{prefix}{self.id}"
+
+    def __str__(self):
+        return f"Batch {self.id}"
 
 
 class Sample(models.Model):
     """Sample with metadata"""
 
-    entity = models.ForeignKey(Entity, on_delete=models.CASCADE, related_name="samples")
     created_at = models.DateTimeField(auto_now_add=True)
-    requestor_id = models.CharField(max_length=100)
-    schema = models.ForeignKey(SampleSchema, on_delete=models.PROTECT)
+    updated_at = models.DateTimeField(auto_now=True)
     metadata = JSONField()
+
+    batch = models.ForeignKey(Batch, on_delete=models.PROTECT, related_name="samples")
+    schema = models.ForeignKey(MetaSchema, on_delete=models.PROTECT)
+
+    @property
+    def barcode(self):
+        """Return barcode for the sample"""
+        prefix = "S"
+        return f"{prefix}{self.id}"
 
     def __str__(self):
         return f"{self.id} ({self.schema})"
 
 
-class ResultSchema(models.Model):
-    """Schema for validating Result metadata"""
+class Analysis(models.Model):
+    """Analysis model representing an analytical run (e.g., HPLC SEC for titer quantification)"""
 
-    type = models.CharField(max_length=100)
-    version = models.PositiveSmallIntegerField()
-    definition = JSONField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    schema = models.ForeignKey(MetaSchema, on_delete=models.PROTECT)
+    metadata = JSONField()
+    projects = models.ManyToManyField(Project, related_name="analyses")
+    raw_data_link = models.URLField(blank=True, null=True, help_text="Link to raw data")
 
-    class Meta:
-        unique_together = ("type", "version")
+    @property
+    def barcode(self):
+        """Return barcode for the analysis"""
+        prefix = "A"
+        return f"{prefix}{self.id}"
 
     def __str__(self):
-        return f"{self.type} v{self.version}"
+        return f"Analysis {self.id}"
 
 
 class Result(models.Model):
-    """Result associated with a sample, validated by ResultSchema"""
+    """Result model linking to both Analysis and Sample, storing specific output data"""
 
+    analysis = models.ForeignKey(
+        Analysis, on_delete=models.CASCADE, related_name="results"
+    )
     sample = models.ForeignKey(Sample, on_delete=models.CASCADE, related_name="results")
-    schema = models.ForeignKey(ResultSchema, on_delete=models.PROTECT)
+    schema = models.ForeignKey(MetaSchema, on_delete=models.PROTECT)
     data = JSONField()
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    @property
+    def barcode(self):
+        """Return barcode for the result"""
+        prefix = "R"
+        return f"{prefix}{self.id}"
 
     def __str__(self):
-        return f"Result for {self.sample} ({self.schema})"
+        return f"Result for Sample {self.sample.id}"

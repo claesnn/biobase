@@ -4,24 +4,34 @@ from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from .models import Entity, EntitySchema, Result, ResultSchema, Sample, SampleSchema
+from .models import Analysis, Batch, Entity, MetaSchema, Project, Result, Sample
 from .serializers import (
-    EntitySchemaSerializer,
+    AnalysisSerializer,
+    BatchSerializer,
     EntitySerializer,
-    ResultSchemaSerializer,
+    MetaSchemaSerializer,
+    ProjectSerializer,
     ResultSerializer,
-    SampleSchemaSerializer,
     SampleSerializer,
 )
 
 
-class EntitySchemaViewset(viewsets.ModelViewSet):
+class ProjectViewSet(viewsets.ModelViewSet):
+    """
+    A viewset for viewing and editing projects.
+    """
+
+    queryset = Project.objects.all()
+    serializer_class = ProjectSerializer
+
+
+class MetaSchemaViewset(viewsets.ModelViewSet):
     """
     A viewset for viewing and editing metadata schemas.
     """
 
-    queryset = EntitySchema.objects.all()
-    serializer_class = EntitySchemaSerializer
+    queryset = MetaSchema.objects.all()
+    serializer_class = MetaSchemaSerializer
 
 
 class EntityViewSet(viewsets.ModelViewSet):
@@ -49,13 +59,29 @@ class EntityViewSet(viewsets.ModelViewSet):
         return queryset
 
 
-class SampleSchemaViewSet(viewsets.ModelViewSet):
+class BatchViewSet(viewsets.ModelViewSet):
     """
-    A viewset for viewing and editing sample schemas.
+    A viewset for viewing and editing batches.
     """
 
-    queryset = SampleSchema.objects.all()
-    serializer_class = SampleSchemaSerializer
+    queryset = Batch.objects.select_related("schema")
+    serializer_class = BatchSerializer
+
+    def get_queryset(self):
+        """
+        Optionally restricts the returned batches to a given schema type or version,
+        by filtering against `schema__type` and `schema__version` query parameters in the URL.
+        """
+        queryset = super().get_queryset()
+        schema_type = self.request.query_params.get("schema__type")
+        schema_version = self.request.query_params.get("schema__version")
+
+        if schema_type:
+            queryset = queryset.filter(schema__type=schema_type)
+        if schema_version:
+            queryset = queryset.filter(schema__version=schema_version)
+
+        return queryset
 
 
 class SampleViewSet(viewsets.ModelViewSet):
@@ -93,13 +119,29 @@ class SampleViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
 
 
-class ResultSchemaViewSet(viewsets.ModelViewSet):
+class AnalysisViewSet(viewsets.ModelViewSet):
     """
-    A viewset for viewing and editing result schemas.
+    A viewset for viewing and editing analyses.
     """
 
-    queryset = ResultSchema.objects.all()
-    serializer_class = ResultSchemaSerializer
+    queryset = Analysis.objects.select_related("schema")
+    serializer_class = AnalysisSerializer
+
+    def get_queryset(self):
+        """
+        Optionally restricts the returned analyses to a given schema type or version,
+        by filtering against `schema__type` and `schema__version` query parameters in the URL.
+        """
+        queryset = self.queryset
+        schema_type = self.request.query_params.get("schema__type")
+        schema_version = self.request.query_params.get("schema__version")
+
+        if schema_type:
+            queryset = queryset.filter(schema__type=schema_type)
+        if schema_version:
+            queryset = queryset.filter(schema__version=schema_version)
+
+        return queryset
 
 
 class ResultViewSet(viewsets.ModelViewSet):
