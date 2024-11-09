@@ -25,11 +25,12 @@ class MetaSchema(models.Model):
         SAMPLE = 3
         RESULT = 4
         ANALYSIS = 5
+        MATERIAL = 6
 
     title = models.CharField(
         max_length=100
     )  # Antibody, Cultivation, CultivationSample, Plasmid, Stem Cell, Oligo
-    type = models.IntegerField(choices=SchemaType)  # Entity, Batch, Sample, Result
+    type = models.IntegerField(choices=SchemaType)
     version = models.PositiveSmallIntegerField()
     definition = JSONField()
 
@@ -60,8 +61,31 @@ class Entity(models.Model):
         return f"{prefix}{self.id}"
 
 
+class Material(models.Model):
+    """Material model"""
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    metadata = JSONField()
+
+    entity = models.ForeignKey(
+        Entity, on_delete=models.PROTECT, related_name="materials"
+    )
+    schema = models.ForeignKey(MetaSchema, on_delete=models.PROTECT)
+    projects = models.ManyToManyField(Project, related_name="materials")
+
+    @property
+    def barcode(self):
+        """Return barcode for the material"""
+        prefix = "M"
+        return f"{prefix}{self.id}"
+
+    def __str__(self):
+        return f"Material {self.id}"
+
+
 class Batch(models.Model):
-    """Batch of entities"""
+    """Batch of preparations"""
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -69,7 +93,7 @@ class Batch(models.Model):
 
     schema = models.ForeignKey(MetaSchema, on_delete=models.PROTECT)
     projects = models.ManyToManyField(Project, related_name="batches")
-    entities = models.ManyToManyField(Entity, related_name="batches")
+    preparations = models.ManyToManyField(Entity, related_name="batches")
 
     @property
     def barcode(self):
